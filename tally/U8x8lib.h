@@ -42,7 +42,7 @@
 #include <Arduino.h>
 #include <Print.h>
 
-#include "csrc/u8x8.h"
+#include "clib/u8x8.h"
 
 
 /* 

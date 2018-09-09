@@ -36,7 +36,7 @@
 
   Note:
   U8x8lib.h is included for the declaration of the helper functions in U8x8lib.cpp.
-  U8g2 class is based on the u8g2 struct from u8g2.h, the U8x8 class from U8x8lib.h is not used.
+  U8g2 class is based on the u8g2 struct from clib/u8g2.h, the U8x8 class from U8x8lib.h is not used.
 
 
 */
@@ -49,7 +49,7 @@
 #include <Print.h>
 #include "U8x8lib.h"
 
-#include "csrc/u8g2.h"
+#include "clib/u8g2.h"
 
 class U8G2 : public Print
 {
@@ -167,7 +167,7 @@ class U8G2 : public Print
     // this should be renamed to setBufferAutoClear
     void setAutoPageClear(uint8_t mode)  { u8g2_SetAutoPageClear(&u8g2, mode); }
 
-    /* u8g2_hvline.c */
+    /* clib/u8g2.hvline.c */
     void setDrawColor(uint8_t color_index) { u8g2_SetDrawColor(&u8g2, color_index); }
     uint8_t getDrawColor(void) { return u8g2_GetDrawColor(&u8g2); }
     void drawPixel(u8g2_uint_t x, u8g2_uint_t y) { u8g2_DrawPixel(&u8g2, x, y); }
