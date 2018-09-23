@@ -1,20 +1,11 @@
 #include <Arduino.h>
+#include <avr/pgmspace.h>
 //#include <SPI.h>
-#include "U8x8lib.h"
 #include "U8g2lib.h"
 
-//#include <SdFat.h>
-//#include "SpiRAM.h"
-
-
-/*
- * Yet to decide SD_CS_PIN, all switch pin
- */
+#include <SdFat.h>
 #define SD_CS_PIN   A4
-//SdFat sd;
-
-#define SS_PIN   A5
-//SpiRAM SpiRam(0, SS_PIN);
+SdFat sd;
 
 // object - display library.
 U8G2_SSD1322_NHD_128X64_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ 8, /* dc=*/ A3, /* reset=*/ 9);
@@ -34,8 +25,7 @@ U8G2_SSD1322_NHD_128X64_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ 8, /* dc=*/ A3, /* re
 #define SW_LEFT   5
 #define SW_RIGHT  6
 #define SW_ENTER  7
-
-uint8_t SW_arr[7] = {SW_POWER, SW_MENU, SW_UP, SW_DOWN, SW_LEFT, SW_RIGHT, SW_ENTER};
+//uint8_t SW_arr[7] = {SW_POWER, SW_MENU, SW_UP, SW_DOWN, SW_LEFT, SW_RIGHT, SW_ENTER};
 
 // variables for state mechanism 
 #define DISPLAY_OFF                     0
@@ -58,55 +48,602 @@ uint8_t SW_arr[7] = {SW_POWER, SW_MENU, SW_UP, SW_DOWN, SW_LEFT, SW_RIGHT, SW_EN
 uint8_t curr_state, last_state;
 
 // User variable
-char nameOfTally[4] = {'A', 'A', 'A', '1'};
-char offsetInMM[3] = {'0', '0', '0'};
+char nameOfTally_ch1[2] = {'A', 0};
+char nameOfTally_ch2[2] = {'B', 0};
+char nameOfTally_ch3[2] = {'C', 0};
+char nameOfTally_ch4[2] = {'1', 0};
+char offsetInMM_ch1[2] = {'0', 0};
+char offsetInMM_ch2[2] = {'0', 0};
+char offsetInMM_ch3[2] = {'0', 0};
 
 void setup(void)
 {
   // Switches - Enable internal pull-ups
-//  digitalWrite(SW_POWER, HIGH);
-//  digitalWrite(SW_MENU, HIGH);
-//  digitalWrite(SW_UP, HIGH);
-//  digitalWrite(SW_DOWN, HIGH);
-//  digitalWrite(SW_LEFT, HIGH);
-//  digitalWrite(SW_RIGHT, HIGH);
-//  digitalWrite(SW_ENTER, HIGH);
-//
+  digitalWrite(SW_POWER, HIGH);
+  digitalWrite(SW_MENU, HIGH);
+  digitalWrite(SW_UP, HIGH);
+  digitalWrite(SW_DOWN, HIGH);
+  digitalWrite(SW_LEFT, HIGH);
+  digitalWrite(SW_RIGHT, HIGH);
+  digitalWrite(SW_ENTER, HIGH);
+
 //  // Switches - set pin as INPUT pin.
-//  pinMode(SW_POWER, INPUT);
-//  pinMode(SW_MENU, INPUT);
-//  pinMode(SW_UP, INPUT);
-//  pinMode(SW_DOWN, INPUT);
-//  pinMode(SW_LEFT, INPUT);
-//  pinMode(SW_RIGHT, INPUT);
-//  pinMode(SW_ENTER, INPUT);
+  pinMode(SW_POWER, INPUT);
+  pinMode(SW_MENU, INPUT);
+  pinMode(SW_UP, INPUT);
+  pinMode(SW_DOWN, INPUT);
+  pinMode(SW_LEFT, INPUT);
+  pinMode(SW_RIGHT, INPUT);
+  pinMode(SW_ENTER, INPUT);
 
   Serial.begin(115200);
-  Serial.println("starting");
+  Serial.println(F("Application is starting ... "));
 
   // Initialize display
   u8g2.begin();
   u8g2.clearDisplay();
-  Serial.println("test1");
    
-//  while(digitalRead(SW_POWER) == UNPRESSED);
+  // while(digitalRead(SW_POWER) == UNPRESSED);
   delay(100);
 
-  //iniSDcard();
+  iniSDcard();
+  sd.mkdir(".cache");
+  
+  displayErrorSdCard();
+  displayCreateTally();
   displayLoadTally();
-
-  //displayIntro();
+  displayConfirmLabelOk();
+  displayConfirmLabelCancel();
+  displayConfirmOffsetOk();
+  displayConfirmOffsetCancel();
+  displayMenuHud();
+  displayMenuEdit();
+  displayMenuMemory();
+  displayMenuSend();
+  displayMenuSettings();
   
   curr_state = last_state = DISPLAY_CREATE_TALLY;
   
-  Serial.println("init display");
-  while(1);
+  Serial.println(F("key navigation started ... "));
 }
 
 void loop(void)
 {
   keySwitchNavigation();
 }
+
+// ********************************** Display function ************************************ //
+// * Need to set font size and style (must be checked on actual display)
+
+const char str_titleee[] PROGMEM = "titleee";
+const char str_starting[] PROGMEM = "starting ...";
+void displayIntro(void)
+{
+  char buffer[30];
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB14_tf);
+  strcpy_P(buffer, str_titleee);
+  u8g2.drawStr(32,26,buffer);
+  u8g2.drawHLine(11,31,105);
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_starting);
+  u8g2.drawStr(38,43,buffer);
+  u8g2.sendBuffer();
+}
+
+const char str_error[] PROGMEM = "error";
+const char str_please_insert_an[] PROGMEM = "Please insert an";
+const char str_sd_card_into_the[] PROGMEM = "sd card into the";
+const char str_machine[] PROGMEM = "machine. . .";
+const char str_OK[] PROGMEM = "OK";
+void displayErrorSdCard(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_error);  
+  u8g2.drawStr(13,8,buffer);
+  strcpy_P(buffer, str_please_insert_an);  
+  u8g2.drawStr(25,23,buffer);
+  strcpy_P(buffer, str_sd_card_into_the);  
+  u8g2.drawStr(25,36,buffer);
+  strcpy_P(buffer, str_machine);  
+  u8g2.drawStr(25,47,buffer);
+  u8g2.drawHLine(3,5,4);
+  u8g2.drawVLine(3,5,52);
+  u8g2.drawHLine(3,57,79);
+  u8g2.drawHLine(117,57,8);
+  u8g2.drawVLine(124,5,52);
+  u8g2.drawHLine(45,5,80);
+  u8g2.drawBox(85,51,30,12);
+  u8g2.setDrawColor(0);
+  strcpy_P(buffer, str_OK);
+  u8g2.drawStr(92,61,buffer);
+  u8g2.sendBuffer();
+}
+
+const char str_create_new_tally[] PROGMEM = "Create new tally";
+const char str_new[] PROGMEM = "new";
+const char str_load[] PROGMEM = "load";
+void displayCreateTally(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_create_new_tally);
+  u8g2.drawStr(19,24,buffer);
+  u8g2.drawFrame(75,36,32,13);
+  strcpy_P(buffer, str_load);
+  u8g2.drawStr(80,46,buffer);
+  u8g2.drawBox(24,36,34,13);
+  u8g2.setDrawColor(0);
+  strcpy_P(buffer, str_new);
+  u8g2.drawStr(30,45,buffer);
+  u8g2.sendBuffer();
+}
+const char str_load_old_tally[] PROGMEM = "Load old tally";
+void displayLoadTally(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_load_old_tally);
+  u8g2.drawStr(24,22,buffer);
+  u8g2.drawFrame(22,36,36,13);
+  strcpy_P(buffer, str_new);
+  u8g2.drawStr(30,45,buffer);
+  u8g2.drawBox(75,36,32,13);
+  u8g2.setDrawColor(0);
+  strcpy_P(buffer, str_load);
+  u8g2.drawStr(80,46,buffer);
+  u8g2.sendBuffer();
+}
+
+void drawUpArrow(uint8_t x_pos, uint8_t y_pos)
+{
+  u8g2.drawLine(x_pos,y_pos,x_pos+3,y_pos-7);
+  u8g2.drawLine(x_pos+3,y_pos-7,x_pos+6,y_pos);
+  u8g2.drawHLine(x_pos,y_pos,6);
+}
+void drawDownArrow(uint8_t x_pos, uint8_t y_pos)
+{
+  u8g2.drawLine(x_pos,y_pos,x_pos+3,y_pos+7);
+  u8g2.drawLine(x_pos+3,y_pos+7,x_pos+6,y_pos);
+  u8g2.drawHLine(x_pos,y_pos,6);
+}
+
+const char str_enter[] PROGMEM = "enter";
+const char str_label[] PROGMEM = "label";
+void displayLabelInput1()
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_enter);
+  u8g2.drawStr(17,29,buffer);
+  strcpy_P(buffer, str_label);
+  u8g2.drawStr(17,43,buffer);
+
+//  u8g2.drawTriangle(55,18,58,11,61,18);
+//  u8g2.drawTriangle(55,43,58,50,61,43);
+  drawUpArrow(55,18);
+  drawDownArrow(55,43);
+  u8g2.drawStr(55,35,nameOfTally_ch1);
+  u8g2.drawStr(71,35,nameOfTally_ch2);
+  u8g2.drawStr(90,35,nameOfTally_ch3);
+  u8g2.drawStr(108,35,nameOfTally_ch4);
+  u8g2.sendBuffer();
+}
+void displayLabelInput2()
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_enter);
+  u8g2.drawStr(17,29,buffer);
+  strcpy_P(buffer, str_label);
+  u8g2.drawStr(17,43,buffer);
+
+  drawUpArrow(71,18);
+  drawDownArrow(71,43);
+  u8g2.drawStr(55,35,nameOfTally_ch1);
+  u8g2.drawStr(71,35,nameOfTally_ch2);
+  u8g2.drawStr(90,35,nameOfTally_ch3);
+  u8g2.drawStr(108,35,nameOfTally_ch4);
+  u8g2.sendBuffer();
+}
+void displayLabelInput3()
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_enter);
+  u8g2.drawStr(17,29,buffer);
+  strcpy_P(buffer, str_label);
+  u8g2.drawStr(17,43,buffer);
+
+  drawUpArrow(90,18);
+  drawDownArrow(90,43);
+  u8g2.drawStr(55,35,nameOfTally_ch1);
+  u8g2.drawStr(71,35,nameOfTally_ch2);
+  u8g2.drawStr(90,35,nameOfTally_ch3);
+  u8g2.drawStr(108,35,nameOfTally_ch4);
+  u8g2.sendBuffer();
+}
+void displayLabelInput4()
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_enter);
+  u8g2.drawStr(17,29,buffer);
+  strcpy_P(buffer, str_label);
+  u8g2.drawStr(17,43,buffer);
+
+  drawUpArrow(108,18);
+  drawDownArrow(108,43);
+  u8g2.drawStr(55,35,nameOfTally_ch1);
+  u8g2.drawStr(71,35,nameOfTally_ch2);
+  u8g2.drawStr(90,35,nameOfTally_ch3);
+  u8g2.drawStr(108,35,nameOfTally_ch4);
+  u8g2.sendBuffer();
+}
+
+const char str_confirm[] PROGMEM = "confirm";
+const char str_do_you_want_to_name[] PROGMEM = "Do you want to name";
+const char str_this_tally_var[] PROGMEM = "this tally";
+const char str_CANCEL[] PROGMEM = "CANCEL";
+void displayConfirmLabelOk(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.drawHLine(3,5,4);
+  u8g2.drawVLine(3,5,52);
+  u8g2.drawHLine(3,57,5);
+  u8g2.drawHLine(65,57,18);
+  u8g2.drawHLine(117,57,8);
+  u8g2.drawVLine(124,5,52);
+  u8g2.drawHLine(63,5,62);
+  
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_confirm);  
+  u8g2.drawStr(13,8,buffer);
+  strcpy_P(buffer, str_do_you_want_to_name);  
+  u8g2.drawStr(13,23,buffer);
+  strcpy_P(buffer, str_this_tally_var);  
+  u8g2.drawStr(13,36,buffer);
+  strcpy_P(buffer, str_CANCEL);  
+  u8g2.drawStr(13,61,buffer);
+
+  u8g2.drawStr(68,36,nameOfTally_ch1);
+  u8g2.drawStr(77,36,nameOfTally_ch2);
+  u8g2.drawStr(86,36,nameOfTally_ch3);
+  u8g2.drawStr(95,36,nameOfTally_ch4);
+  u8g2.drawStr(104,36,"?");
+  
+  u8g2.drawFrame(10,51,52,12);
+
+  u8g2.drawBox(85,51,30,12);
+  u8g2.setDrawColor(0);
+  strcpy_P(buffer, str_OK);
+  u8g2.drawStr(92,61,buffer);
+  u8g2.sendBuffer();
+}
+void displayConfirmLabelCancel(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.drawHLine(3,5,4);
+  u8g2.drawVLine(3,5,52);
+  u8g2.drawHLine(3,57,5);
+  u8g2.drawHLine(65,57,18);
+  u8g2.drawHLine(117,57,8);
+  u8g2.drawVLine(124,5,52);
+  u8g2.drawHLine(63,5,62);
+  
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_confirm);  
+  u8g2.drawStr(13,8,buffer);
+  strcpy_P(buffer, str_do_you_want_to_name);  
+  u8g2.drawStr(13,23,buffer);
+  strcpy_P(buffer, str_this_tally_var);  
+  u8g2.drawStr(13,36,buffer);
+
+  u8g2.drawStr(68,36,nameOfTally_ch1);
+  u8g2.drawStr(77,36,nameOfTally_ch2);
+  u8g2.drawStr(86,36,nameOfTally_ch3);
+  u8g2.drawStr(95,36,nameOfTally_ch4);
+  u8g2.drawStr(104,36,"?");
+  
+  u8g2.drawFrame(85,51,30,12);  
+  strcpy_P(buffer, str_OK);
+  u8g2.drawStr(92,61,buffer);
+
+  u8g2.drawBox(10,51,52,12);
+  u8g2.setDrawColor(0);
+  strcpy_P(buffer, str_CANCEL);  
+  u8g2.drawStr(13,61,buffer);
+  
+  u8g2.sendBuffer();
+}
+
+const char str_offset[] PROGMEM = "offset";
+const char str_mm[] PROGMEM = "mm";
+const char str_b_mm[] PROGMEM = "(mm)";
+void displayOffsetInput1()
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_enter);
+  u8g2.drawStr(12,20,buffer);
+  strcpy_P(buffer, str_offset);
+  u8g2.drawStr(10,35,buffer);
+  strcpy_P(buffer, str_b_mm);
+  u8g2.drawStr(10,48,buffer);
+  strcpy_P(buffer, str_mm);
+  u8g2.drawStr(105,33,buffer);
+
+  u8g2.setFont(u8g2_font_ncenB14_tf);
+  drawUpArrow(57,18);
+  drawDownArrow(57,43);
+  u8g2.drawStr(55,38,offsetInMM_ch1);
+  u8g2.drawStr(71,38,offsetInMM_ch2);
+  u8g2.drawStr(87,38,offsetInMM_ch3);
+  u8g2.sendBuffer();
+}
+void displayOffsetInput2()
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_enter);
+  u8g2.drawStr(12,20,buffer);
+  strcpy_P(buffer, str_offset);
+  u8g2.drawStr(10,35,buffer);
+  strcpy_P(buffer, str_b_mm);
+  u8g2.drawStr(10,48,buffer);
+  strcpy_P(buffer, str_mm);
+  u8g2.drawStr(105,33,buffer);
+
+  u8g2.setFont(u8g2_font_ncenB14_tf);
+  drawUpArrow(73,18);
+  drawDownArrow(73,43);
+  u8g2.drawStr(55,38,offsetInMM_ch1);
+  u8g2.drawStr(71,38,offsetInMM_ch2);
+  u8g2.drawStr(87,38,offsetInMM_ch3);
+  u8g2.sendBuffer();
+}
+void displayOffsetInput3()
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_enter);
+  u8g2.drawStr(12,20,buffer);
+  strcpy_P(buffer, str_offset);
+  u8g2.drawStr(10,35,buffer);
+  strcpy_P(buffer, str_b_mm);
+  u8g2.drawStr(10,48,buffer);
+  strcpy_P(buffer, str_mm);
+  u8g2.drawStr(105,33,buffer);
+
+  u8g2.setFont(u8g2_font_ncenB14_tf);
+  drawUpArrow(89,18);
+  drawDownArrow(89,43);
+  u8g2.drawStr(55,38,offsetInMM_ch1);
+  u8g2.drawStr(71,38,offsetInMM_ch2);
+  u8g2.drawStr(87,38,offsetInMM_ch3);
+  u8g2.sendBuffer();
+}
+
+const char str_you_entered_an[] PROGMEM = "You entered an";
+const char str_offset_of[] PROGMEM = "offset of ";
+const char str_Is_this_correct[] PROGMEM = "Is this correct?";
+const char str_Is_mm_d[] PROGMEM = "mm.";
+void displayConfirmOffsetOk(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.drawHLine(3,5,4);
+  u8g2.drawVLine(3,5,52);
+  u8g2.drawHLine(3,57,5);
+  u8g2.drawHLine(65,57,18);
+  u8g2.drawHLine(117,57,8);
+  u8g2.drawVLine(124,5,52);
+  u8g2.drawHLine(63,5,62);
+  
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_confirm);  
+  u8g2.drawStr(13,8,buffer);
+  strcpy_P(buffer, str_you_entered_an);  
+  u8g2.drawStr(23,20,buffer);
+  strcpy_P(buffer, str_offset_of);  
+  u8g2.drawStr(23,33,buffer);
+  strcpy_P(buffer, str_Is_this_correct);  
+  u8g2.drawStr(23,46,buffer);
+
+  u8g2.drawStr(74,33,offsetInMM_ch1);
+  u8g2.drawStr(80,33,offsetInMM_ch2);
+  u8g2.drawStr(86,33,offsetInMM_ch3);
+  strcpy_P(buffer, str_Is_mm_d);  
+  u8g2.drawStr(94,33,buffer);
+
+  strcpy_P(buffer, str_CANCEL);  
+  u8g2.drawStr(13,61,buffer);
+  u8g2.drawFrame(10,51,52,12);
+
+  u8g2.drawBox(85,51,30,12);
+  u8g2.setDrawColor(0);
+  strcpy_P(buffer, str_OK);
+  u8g2.drawStr(92,61,buffer);
+  u8g2.sendBuffer();
+}
+void displayConfirmOffsetCancel(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.drawHLine(3,5,4);
+  u8g2.drawVLine(3,5,52);
+  u8g2.drawHLine(3,57,5);
+  u8g2.drawHLine(65,57,18);
+  u8g2.drawHLine(117,57,8);
+  u8g2.drawVLine(124,5,52);
+  u8g2.drawHLine(63,5,62);
+  
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  strcpy_P(buffer, str_confirm);  
+  u8g2.drawStr(13,8,buffer);
+  strcpy_P(buffer, str_you_entered_an);  
+  u8g2.drawStr(23,20,buffer);
+  strcpy_P(buffer, str_offset_of);  
+  u8g2.drawStr(23,33,buffer);
+  strcpy_P(buffer, str_Is_this_correct);  
+  u8g2.drawStr(23,46,buffer);
+
+  u8g2.drawStr(74,33,offsetInMM_ch1);
+  u8g2.drawStr(80,33,offsetInMM_ch2);
+  u8g2.drawStr(86,33,offsetInMM_ch3);
+  strcpy_P(buffer, str_Is_mm_d);  
+  u8g2.drawStr(94,33,buffer);
+
+  u8g2.drawFrame(85,51,30,12);
+  strcpy_P(buffer, str_OK);
+  u8g2.drawStr(92,61,buffer);
+  
+  u8g2.drawBox(10,51,52,12);
+  u8g2.setDrawColor(0);  
+  strcpy_P(buffer, str_CANCEL);  
+  u8g2.drawStr(13,61,buffer);
+  u8g2.sendBuffer();
+}
+
+const char str_menu[] PROGMEM = "menu";
+const char str_HUD[] PROGMEM = "HUD";
+const char str_EDIT[] PROGMEM = "EDIT";
+const char str_MEMORY[] PROGMEM = "MEMORY";
+const char str_SEND[] PROGMEM = "SEND";
+const char str_SETTINGS[] PROGMEM = "SETTINGS";
+void displayMenuHud(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  u8g2.drawHLine(42,12,36);
+  
+  strcpy_P(buffer, str_menu);
+  u8g2.drawStr(45,10,buffer);
+  strcpy_P(buffer, str_EDIT);
+  u8g2.drawStr(47,42,buffer);
+  strcpy_P(buffer, str_MEMORY);
+  u8g2.drawStr(35,57,buffer);
+  
+  u8g2.drawBox(8,18,112,10);
+  u8g2.setDrawColor(0);  
+  strcpy_P(buffer, str_HUD);  
+  u8g2.drawStr(48,27,buffer);
+  u8g2.sendBuffer();
+}
+void displayMenuEdit(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  u8g2.drawHLine(42,12,36);
+  
+  strcpy_P(buffer, str_menu);
+  u8g2.drawStr(45,10,buffer);
+  strcpy_P(buffer, str_HUD);  
+  u8g2.drawStr(48,27,buffer);
+  strcpy_P(buffer, str_MEMORY);
+  u8g2.drawStr(35,57,buffer);
+  
+  u8g2.drawBox(8,33,112,10);
+  u8g2.setDrawColor(0);  
+  strcpy_P(buffer, str_EDIT);
+  u8g2.drawStr(47,42,buffer);
+  u8g2.sendBuffer();
+}
+void displayMenuMemory(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  u8g2.drawHLine(42,12,36);
+  
+  strcpy_P(buffer, str_menu);
+  u8g2.drawStr(45,10,buffer);
+  strcpy_P(buffer, str_EDIT);  
+  u8g2.drawStr(47,27,buffer);
+  strcpy_P(buffer, str_SEND);
+  u8g2.drawStr(47,57,buffer);
+  
+  u8g2.drawBox(8,33,112,10);
+  u8g2.setDrawColor(0);  
+  strcpy_P(buffer, str_MEMORY);
+  u8g2.drawStr(35,42,buffer);
+  u8g2.sendBuffer();
+}
+void displayMenuSend(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  u8g2.drawHLine(42,12,36);
+  
+  strcpy_P(buffer, str_menu);
+  u8g2.drawStr(45,10,buffer);
+  strcpy_P(buffer, str_MEMORY);  
+  u8g2.drawStr(35,27,buffer);
+  strcpy_P(buffer, str_SETTINGS);
+  u8g2.drawStr(34,57,buffer);
+  
+  u8g2.drawBox(8,33,112,10);
+  u8g2.setDrawColor(0);  
+  strcpy_P(buffer, str_SEND);
+  u8g2.drawStr(47,42,buffer);
+  u8g2.sendBuffer();
+}
+void displayMenuSettings(void)
+{
+  char buffer[30];
+  u8g2.setDrawColor(1);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tf);
+  u8g2.drawHLine(42,12,36);
+  
+  strcpy_P(buffer, str_menu);
+  u8g2.drawStr(45,10,buffer);
+  strcpy_P(buffer, str_MEMORY);  
+  u8g2.drawStr(35,27,buffer);
+  strcpy_P(buffer, str_SEND);
+  u8g2.drawStr(47,42,buffer);
+  
+  u8g2.drawBox(8,48,112,10);
+  u8g2.setDrawColor(0);  
+  strcpy_P(buffer, str_SETTINGS);
+  u8g2.drawStr(34,57,buffer);
+  u8g2.sendBuffer();
+}
+
 // **************************** Key navigation and state cycle functions *************************** //
 /*
  * Key switch detection can be improved.
@@ -214,7 +751,7 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_ENTER)
       {
-        displayLabelInput1(nameOfTally);
+        displayLabelInput1();
         curr_state = DISPLAY_LABEL_INPUT_1;
       }
     }break;
@@ -234,18 +771,18 @@ void state_update(uint8_t pressedKey)
     {
       if(pressedKey == SW_RIGHT)
       {
-        displayLabelInput2(nameOfTally);
+        displayLabelInput2();
         curr_state = DISPLAY_LABEL_INPUT_2;
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyChar(nameOfTally, 1, INC);
-        displayLabelInput1(nameOfTally);
+        updateTallyChar(nameOfTally_ch1, INC);
+        displayLabelInput1();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyChar(nameOfTally, 1, DEC);
-        displayLabelInput1(nameOfTally);
+        updateTallyChar(nameOfTally_ch1, DEC);
+        displayLabelInput1();
       }
       else if(pressedKey == SW_ENTER)
       {
@@ -257,23 +794,23 @@ void state_update(uint8_t pressedKey)
     {
       if(pressedKey == SW_LEFT)
       {
-        displayLabelInput1(nameOfTally);
+        displayLabelInput1();
         curr_state = DISPLAY_LABEL_INPUT_1;
       }
       else if(pressedKey == SW_RIGHT)
       {
-        displayLabelInput3(nameOfTally);
+        displayLabelInput3();
         curr_state = DISPLAY_LABEL_INPUT_3;
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyChar(nameOfTally, 2, INC);
-        displayLabelInput2(nameOfTally);
+        updateTallyChar(nameOfTally_ch2, INC);
+        displayLabelInput2();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyChar(nameOfTally, 2, DEC);
-        displayLabelInput2(nameOfTally);
+        updateTallyChar(nameOfTally_ch2, DEC);
+        displayLabelInput2();
       }
       else if(pressedKey == SW_ENTER)
       {
@@ -285,23 +822,23 @@ void state_update(uint8_t pressedKey)
     {
       if(pressedKey == SW_LEFT)
       {
-        displayLabelInput2(nameOfTally);
+        displayLabelInput2();
         curr_state = DISPLAY_LABEL_INPUT_2;
       }
       else if(pressedKey == SW_RIGHT)
       {
-        displayLabelInput4(nameOfTally);
+        displayLabelInput4();
         curr_state = DISPLAY_LABEL_INPUT_4;
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyChar(nameOfTally, 3, INC);
-        displayLabelInput3(nameOfTally);
+        updateTallyChar(nameOfTally_ch3, INC);
+        displayLabelInput3();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyChar(nameOfTally, 3, DEC);
-        displayLabelInput3(nameOfTally);
+        updateTallyChar(nameOfTally_ch3, DEC);
+        displayLabelInput3();
       }
       else if(pressedKey == SW_ENTER)
       {
@@ -313,18 +850,18 @@ void state_update(uint8_t pressedKey)
     {
       if(pressedKey == SW_LEFT)
       {
-        displayLabelInput3(nameOfTally);
+        displayLabelInput3();
         curr_state = DISPLAY_LABEL_INPUT_3;
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyNum(nameOfTally, 4, INC);
-        displayLabelInput4(nameOfTally);
+        updateTallyNum(nameOfTally_ch4, INC);
+        displayLabelInput4();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyNum(nameOfTally, 4, DEC);
-        displayLabelInput4(nameOfTally);
+        updateTallyNum(nameOfTally_ch4, DEC);
+        displayLabelInput4();
       }
       else if(pressedKey == SW_ENTER)
       {
@@ -341,7 +878,7 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_ENTER)
       {
-        displayOffsetInput1(offsetInMM);
+        displayOffsetInput1();
         curr_state = DISPLAY_OFFSET_INPUT_1;
       }
     }break;
@@ -354,7 +891,7 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_ENTER)
       {
-        displayLabelInput1(nameOfTally);
+        displayLabelInput1();
         curr_state = DISPLAY_LABEL_INPUT_1;
       }
     }break;
@@ -362,18 +899,18 @@ void state_update(uint8_t pressedKey)
     {
       if(pressedKey == SW_RIGHT)
       {
-        displayOffsetInput2(offsetInMM);
+        displayOffsetInput2();
         curr_state = DISPLAY_OFFSET_INPUT_2;
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyNum(offsetInMM, 1, INC);
-        displayOffsetInput1(offsetInMM);
+        updateTallyNum(offsetInMM_ch1, INC);
+        displayOffsetInput1();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyNum(offsetInMM, 1, DEC);
-        displayOffsetInput1(offsetInMM);
+        updateTallyNum(offsetInMM_ch1, DEC);
+        displayOffsetInput1();
       }
       else if(pressedKey == SW_ENTER)
       {
@@ -403,291 +940,37 @@ void state_update(uint8_t pressedKey)
 }
 void iniSDcard(void)
 {
-//  do
-//  {
-//    // Display intro Screen
-//    displayIntro();
-//    delay(3000);
-//    if (!sd.begin(SD_CS_PIN, SD_SCK_MHZ(50))) //(SD card not present)
-//    {
-//      displayErrorSdCard();  
-//    }
-//    else
-//    {
-//      break;
-//    }
-//    while(1)
-//    {
-//      if(digitalRead(SW_ENTER) == PRESSED)
-//      {
-//        delay(100);
-//        if(digitalRead(SW_ENTER) == PRESSED)
-//        {
-//          break;
-//        }
-//      }
-//    }
-//  }while(1); 
+  do
+  {
+    // Display intro Screen
+    displayIntro();
+    delay(3000);
+    if (!sd.begin(SD_CS_PIN, SD_SCK_MHZ(50))) //(SD card not present)
+    {
+      displayErrorSdCard();  
+    }
+    else
+    {
+      break;
+    }
+    while(1)
+    {
+      if(digitalRead(SW_ENTER) == PRESSED)
+      {
+        delay(100);
+        if(digitalRead(SW_ENTER) == PRESSED)
+        {
+          break;
+        }
+      }
+    }
+  }while(1); 
 }
-
-// ********************************** Display function ************************************ //
-/*
- * Need to set font size and style (must be checked on actual display)
- * Need to optimize string passed in drawStr function to reduce RAM usage.
- * Need to implement all remaining things mentioned in comment of individual function.
- */
-void displayIntro(void)
-{
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB14_tf);
-  u8g2.drawStr(32,26,"titleee");
-  u8g2.drawHLine(11,31,105);
-  u8g2.setFont(u8g2_font_ncenB08_tf);
-  u8g2.drawStr(38,43,"starting ...");
-  u8g2.sendBuffer();
-}
-void displayErrorSdCard(void)
-{
-//  u8g2.clearDisplay();
-//  // draw square with error and OK box open
-////  u8g2.drawStr(13,5,"error");
-////  u8g2.drawStr(25,16,"Please insert an");
-////  u8g2.drawStr(25,29,"sd card into the");
-//  u8g2.drawStr(25,40,"machine. . .");
-//  // invert font color for 'OK' text or make inverted filled square box over 'OK' text.
-//  u8g2.drawStr(97,51,"OK");
-}
-void displayCreateTally(void)
-{
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB08_tf);
-  u8g2.drawStr(19,24,"Create new tally");
-  u8g2.drawFrame(75,36,32,13);
-  u8g2.drawStr(80,46,"load");
-  // drawing text on filled square is not working yet.
-  //u8g2.drawBox(22,36,32,13);
-  //u8g2.setFontMode(0);
-  u8g2.drawStr(30,45,"new");
-  u8g2.sendBuffer();
-}
-void displayLoadTally(void)
-{
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB08_tf);
-  u8g2.drawStr(24,22,"Load old tally");
-  u8g2.drawFrame(22,36,36,13);
-  u8g2.drawStr(30,45,"new");
-  // drawing text on filled square is not working yet.
-  //u8g2.drawBox(75,36,32,13);
-  //u8g2.setFontMode(0);
-  u8g2.drawStr(80,46,"load");
-  u8g2.sendBuffer();
-}
-void displayLabelInput1(char *var)
-{
-  u8g2.clearBuffer();
-  u8g2.drawStr(17,24,"enter");
-  u8g2.drawStr(17,35,"label");
-  // draw up and down arrow
-  // solve issue : constant does not support in drawStr
-  // get name as argument and display it using drawStr
-  u8g2.drawStr(55,26,"V");
-  u8g2.drawStr(71,26,"A");
-  u8g2.drawStr(90,26,"A");
-  u8g2.drawStr(108,26,"1");
-  u8g2.sendBuffer();
-}
-void displayLabelInput2(char *var)
-{
-//  u8g2.clearDisplay();
-////  u8g2.drawStr(17,24,"enter");
-////  u8g2.drawStr(17,35,"label");
-//  // draw up and down arrow
-//  // get name as argument and display it using drawStr
-//  u8g2.drawStr(55,26,"V");
-//  u8g2.drawStr(71,26,"A");
-//  u8g2.drawStr(90,26,"A");
-//  u8g2.drawStr(108,26,"1");
-}
-void displayLabelInput3(char *var)
-{
-//  u8g2.clearDisplay();
-////  u8g2.drawStr(17,24,"enter");
-////  u8g2.drawStr(17,35,"label");
-//  // draw up and down arrow
-//  // get name as argument and display it using drawStr
-//  u8g2.drawStr(55,26,"V");
-//  u8g2.drawStr(71,26,"A");
-//  u8g2.drawStr(90,26,"A");
-//  u8g2.drawStr(108,26,"1");
-}
-void displayLabelInput4(char *var)
-{
-//  u8g2.clearDisplay();
-//  u8g2.drawStr(17,24,"enter");
-//  u8g2.drawStr(17,35,"label");
-//  // draw up and down arrow
-//  // get name as argument and display it using drawStr
-//  u8g2.drawStr(55,26,"V");
-//  u8g2.drawStr(71,26,"A");
-//  u8g2.drawStr(90,26,"A");
-//  u8g2.drawStr(108,26,"1");
-}
-void displayConfirmLabelOk(void)
-{
-//    u8g2.clearDisplay();
-//  // draw square with confirm, CANCEL and OK box open
-//  u8g2.drawStr(12,5,"confirm");
-//  u8g2.drawStr(17,18,"Do you want to name");
-//  u8g2.drawStr(17,32,"this tally VAR1?");
-//  // draw square box over 'CANCEL' text  
-//  u8g2.drawStr(17,51,"CANCEL");
-//  // invert font color for 'OK' text or make inverted filled square box over 'OK' text.
-//  u8g2.drawStr(97,51,"OK");
-}
-void displayConfirmLabelCancel(void)
-{
-//    u8g2.clearDisplay();
-//  // draw square with confirm, CANCEL and OK box open
-//  u8g2.drawStr(12,5,"confirm");
-//  u8g2.drawStr(17,18,"Do you want to name");
-//  u8g2.drawStr(17,32,"this tally VAR1?");
-//  // invert font color for 'CANCEL' text or make inverted filled square box over 'CANCEL' text.
-//  u8g2.drawStr(17,51,"CANCEL");
-//  // draw square box over 'OK' text  
-//  u8g2.drawStr(97,51,"OK");
-}
-void displayOffsetInput1(char *var)
-{
-//  u8g2.clearDisplay();
-//  u8g2.drawStr(16,19,"enter");
-//  u8g2.drawStr(13,30,"offset");
-//  u8g2.drawStr(18,38,"(mm)");
-//  u8g2.drawStr(107,29,"mm");
-//  // draw up and down arrow
-//  // solve issue : constant does not support in drawStr
-//  // get name as argument and display it using drawStr
-//  // font : increase font size of number
-//  u8g2.drawStr(55,26,"0");
-//  u8g2.drawStr(71,26,"0");
-//  u8g2.drawStr(90,26,"0");
-}
-void displayOffsetInput2(char *var)
-{
-//  u8g2.clearDisplay();
-//  u8g2.drawStr(16,19,"enter");
-//  u8g2.drawStr(13,30,"offset");
-//  u8g2.drawStr(18,38,"(mm)");
-//  u8g2.drawStr(107,29,"mm");
-//  // draw up and down arrow
-//  // solve issue : constant does not support in drawStr
-//  // get name as argument and display it using drawStr
-//  // font : increase font size of number
-//  u8g2.drawStr(55,26,"0");
-//  u8g2.drawStr(71,26,"0");
-//  u8g2.drawStr(90,26,"0");
-}
-void displayOffsetInput3(char *var)
-{
-//  u8g2.clearDisplay();
-//  u8g2.drawStr(16,19,"enter");
-//  u8g2.drawStr(13,30,"offset");
-//  u8g2.drawStr(18,38,"(mm)");
-//  u8g2.drawStr(107,29,"mm");
-//  // draw up and down arrow
-//  // solve issue : constant does not support in drawStr
-//  // get name as argument and display it using drawStr
-//  // font : increase font size of number
-//  u8g2.drawStr(55,26,"0");
-//  u8g2.drawStr(71,26,"0");
-//  u8g2.drawStr(90,26,"0");
-}
-void displayConfirmOffsetOk(void)
-{
-//  u8g2.clearDisplay();
-//  // draw square with confirm, CANCEL and OK box open
-//  u8g2.drawStr(12,5,"confirm");
-//  u8g2.drawStr(27,14,"You entered an");
-//  u8g2.drawStr(27,27,"offset of 0 mm");
-//  u8g2.drawStr(28,36,"Is this correct?");
-//  // draw square box over 'CANCEL' text  
-//  u8g2.drawStr(17,51,"CANCEL");
-//  // invert font color for 'OK' text or make inverted filled square box over 'OK' text.
-//  u8g2.drawStr(97,51,"OK");
-}
-void displayConfirmOffsetCancel(void)
-{
-//  u8g2.clearDisplay();
-//  // draw square with confirm, CANCEL and OK box open
-//  u8g2.drawStr(12,5,"confirm");
-//  u8g2.drawStr(27,14,"You entered an");
-//  u8g2.drawStr(27,27,"offset of 0 mm");
-//  u8g2.drawStr(28,36,"Is this correct?");
-//  // invert font color for 'CANCEL' text or make inverted filled square box over 'CANCEL' text.
-//  u8g2.drawStr(17,51,"CANCEL");
-//  // draw square box over 'OK' text  
-//  u8g2.drawStr(97,51,"OK");
-}
-void displayMenuHud(void)
-{
-//  u8g2.clearDisplay();
-//  // draw horizontal line below 'menu' text
-//  u8g2.drawStr(54,6,"menu");
-//  // invert font color for 'HUD' text or make inverted filled square box over 'HUD' text.
-//  u8g2.drawStr(56,20,"HUD");
-//  u8g2.drawStr(53,33,"EDIT");
-//  u8g2.drawStr(47,46,"MEMORY");
-}
-void displayMenuEdit(void)
-{
-//  u8g2.clearDisplay();
-//  // draw horizontal line below 'menu' text
-//  u8g2.drawStr(54,6,"menu");
-//  // invert font color for 'EDIT' text or make inverted filled square box over 'EDIT' text.
-//  u8g2.drawStr(56,20,"HUD");
-//  u8g2.drawStr(53,33,"EDIT");
-//  u8g2.drawStr(47,46,"MEMORY");
-}
-void displayMenuMemory(void)
-{
-//  u8g2.clearDisplay();
-//  // draw horizontal line below 'menu' text
-//
-////  SpiRam.write_stream(address, "menu", 4);
-//  
-//  u8g2.drawStr(54,6,"menu");
-//  u8g2.drawStr(53,20,"EDIT");
-//  // invert font color for 'MEMORY' text or make inverted filled square box over 'MEMORY' text.
-//  u8g2.drawStr(47,33,"MEMORY");
-//  u8g2.drawStr(53,46,"SEND");
-}
-void displayMenuSend(void)
-{
-//  u8g2.clearDisplay();
-//  // draw horizontal line below 'menu' text
-//  u8g2.drawStr(54,6,"menu");
-//  u8g2.drawStr(47,20,"MEMORY");
-//  // invert font color for 'SEND' text or make inverted filled square box over 'SEND' text.
-//  u8g2.drawStr(53,33,"SEND");
-//  u8g2.drawStr(41,46,"SETTINGS");
-}
-void displayMenuSettings(void)
-{
-//  u8g2.clearDisplay();
-//  // draw horizontal line below 'menu' text
-//  u8g2.drawStr(54,6,"menu");
-//  u8g2.drawStr(47,20,"MEMORY");
-//  u8g2.drawStr(53,33,"SEND");
-//  // invert font color for 'SETTINGS' text or make inverted filled square box over 'SETTINGS' text.
-//  u8g2.setCursor(41,46);
-//  u8g2.print("SETTINGS");
-}
-
 
 // ******************************* PRIVATE function **********************************//
-void updateTallyChar(char *arr, uint8_t position, int8_t update_inst)
+void updateTallyChar(char *arr, int8_t update_inst)
 {
-  char temp = arr[position - 1];
+  char temp = arr[0];
 
   if((temp < 0x41) || (temp > 0x5A)){  temp = 0x41;} // set default to A, if out of range
   
@@ -701,11 +984,11 @@ void updateTallyChar(char *arr, uint8_t position, int8_t update_inst)
     temp--;
     if(temp < 0x41){ temp = 0x5A;}
   }
-  arr[position + 1] = temp;
+  arr[0] = temp;
 }
-void updateTallyNum(char *arr, uint8_t position, int8_t update_inst)
+void updateTallyNum(char *arr, int8_t update_inst)
 {
-  char temp = arr[position - 1];
+  char temp = arr[0];
 
   if((temp < 0x30) || (temp > 0x39)){  temp = 0x30;}   // set default to 0, if out of range
 
@@ -719,6 +1002,6 @@ void updateTallyNum(char *arr, uint8_t position, int8_t update_inst)
     temp--;
     if(temp < 0x30){ temp = 0x39;}
   }
-  arr[position + 1] = temp;
+  arr[0] = temp;
 }
 
