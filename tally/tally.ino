@@ -1,3 +1,5 @@
+#define LOG_ENABLE
+
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 //#include <SPI.h>
@@ -14,8 +16,8 @@ U8G2_SSD1322_NHD_128X64_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ 8, /* dc=*/ A3, /* re
 #define PRESSED     0 // when switch will be pressed arduino will receive this state
 #define UNPRESSED   1
 
-#define INC         1
-#define DEC         0
+#define INCREMENT         1
+#define DECREMENT         0
 
 // Switches interfacing
 #define SW_POWER  1
@@ -76,35 +78,34 @@ void setup(void)
   pinMode(SW_RIGHT, INPUT);
   pinMode(SW_ENTER, INPUT);
 
-  Serial.begin(115200);
-  Serial.println(F("Application is starting ... "));
-
+  #ifdef LOG_ENABLE
+    Serial.begin(115200);
+    Serial.println(F("******** Application is starting ... ********"));
+  #endif
+  
   // Initialize display
   u8g2.begin();
   u8g2.clearDisplay();
-   
-  // while(digitalRead(SW_POWER) == UNPRESSED);
+
+  #ifdef LOG_ENABLE
+    Serial.println(F("- Press Power button to start display ..."));
+  #endif
+  while(digitalRead(SW_POWER) == UNPRESSED);
   delay(100);
+
+  #ifdef LOG_ENABLE
+    Serial.println(F("- Power button is pressed, Dispaly is starting ..."));
+  #endif
 
   iniSDcard();
   sd.mkdir(".cache");
-  
-  displayErrorSdCard();
+
   displayCreateTally();
-  displayLoadTally();
-  displayConfirmLabelOk();
-  displayConfirmLabelCancel();
-  displayConfirmOffsetOk();
-  displayConfirmOffsetCancel();
-  displayMenuHud();
-  displayMenuEdit();
-  displayMenuMemory();
-  displayMenuSend();
-  displayMenuSettings();
-  
   curr_state = last_state = DISPLAY_CREATE_TALLY;
-  
-  Serial.println(F("key navigation started ... "));
+
+  #ifdef LOG_ENABLE
+    Serial.println(F("key navigation started ... "));
+  #endif
 }
 
 void loop(void)
@@ -119,6 +120,9 @@ const char str_titleee[] PROGMEM = "titleee";
 const char str_starting[] PROGMEM = "starting ...";
 void displayIntro(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayIntro called .."));
+  #endif
   char buffer[30];
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_ncenB14_tf);
@@ -138,6 +142,10 @@ const char str_machine[] PROGMEM = "machine. . .";
 const char str_OK[] PROGMEM = "OK";
 void displayErrorSdCard(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayErrorSdCard called .."));
+  #endif
+  
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -168,6 +176,9 @@ const char str_new[] PROGMEM = "new";
 const char str_load[] PROGMEM = "load";
 void displayCreateTally(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayCreateTally called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -186,6 +197,9 @@ void displayCreateTally(void)
 const char str_load_old_tally[] PROGMEM = "Load old tally";
 void displayLoadTally(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayLoadTally called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -219,6 +233,9 @@ const char str_enter[] PROGMEM = "enter";
 const char str_label[] PROGMEM = "label";
 void displayLabelInput1()
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayLabelInput1 called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -240,6 +257,9 @@ void displayLabelInput1()
 }
 void displayLabelInput2()
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayLabelInput2 called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -259,6 +279,9 @@ void displayLabelInput2()
 }
 void displayLabelInput3()
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayLabelInput3 called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -278,6 +301,9 @@ void displayLabelInput3()
 }
 void displayLabelInput4()
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayLabelInput4 called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -302,6 +328,9 @@ const char str_this_tally_var[] PROGMEM = "this tally";
 const char str_CANCEL[] PROGMEM = "CANCEL";
 void displayConfirmLabelOk(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayConfirmLabelOk called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -339,6 +368,9 @@ void displayConfirmLabelOk(void)
 }
 void displayConfirmLabelCancel(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayConfirmLabelCancel called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -381,6 +413,9 @@ const char str_mm[] PROGMEM = "mm";
 const char str_b_mm[] PROGMEM = "(mm)";
 void displayOffsetInput1()
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayOffsetInput1 called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -404,6 +439,9 @@ void displayOffsetInput1()
 }
 void displayOffsetInput2()
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayOffsetInput2 called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -427,6 +465,9 @@ void displayOffsetInput2()
 }
 void displayOffsetInput3()
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayOffsetInput3 called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -455,6 +496,9 @@ const char str_Is_this_correct[] PROGMEM = "Is this correct?";
 const char str_Is_mm_d[] PROGMEM = "mm.";
 void displayConfirmOffsetOk(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayConfirmOffsetOk called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -494,6 +538,9 @@ void displayConfirmOffsetOk(void)
 }
 void displayConfirmOffsetCancel(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayConfirmOffsetCancel called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -540,6 +587,9 @@ const char str_SEND[] PROGMEM = "SEND";
 const char str_SETTINGS[] PROGMEM = "SETTINGS";
 void displayMenuHud(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayMenuHud called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -561,6 +611,7 @@ void displayMenuHud(void)
 }
 void displayMenuEdit(void)
 {
+  Serial.println(F("- function displayMenuEdit called .."));
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -582,6 +633,9 @@ void displayMenuEdit(void)
 }
 void displayMenuMemory(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayMenuMemory called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -603,6 +657,9 @@ void displayMenuMemory(void)
 }
 void displayMenuSend(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayMenuSend called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -624,6 +681,9 @@ void displayMenuSend(void)
 }
 void displayMenuSettings(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- function displayMenuSettings called .."));
+  #endif
   char buffer[30];
   u8g2.setDrawColor(1);
   u8g2.clearBuffer();
@@ -658,6 +718,9 @@ void keySwitchNavigation(void)
   // If multiple keys are pressed, it will be served in sequence - MENU, UP, DOWN, LEFT, RIGHT, ENTER
   if(digitalRead(SW_POWER))
   {
+    #ifdef LOG_ENABLE
+      Serial.println(F("- Power key pressed."));
+    #endif
     delay(100);
     if(digitalRead(SW_POWER))
     {
@@ -666,6 +729,9 @@ void keySwitchNavigation(void)
   }
   if(digitalRead(SW_MENU))
   {
+    #ifdef LOG_ENABLE
+      Serial.println(F("- Menu key pressed."));
+    #endif
     delay(100);
     if(digitalRead(SW_MENU))
     {
@@ -674,6 +740,9 @@ void keySwitchNavigation(void)
   }
   if(digitalRead(SW_UP))
   {
+    #ifdef LOG_ENABLE
+      Serial.println(F("- Up key pressed."));
+    #endif
     delay(100);
     if(digitalRead(SW_UP))
     {
@@ -682,6 +751,9 @@ void keySwitchNavigation(void)
   }
   if(digitalRead(SW_DOWN))
   {
+    #ifdef LOG_ENABLE
+      Serial.println(F("- Down key pressed."));
+    #endif
     delay(100);
     if(digitalRead(SW_DOWN))
     {
@@ -690,6 +762,9 @@ void keySwitchNavigation(void)
   }
   if(digitalRead(SW_LEFT))
   {
+    #ifdef LOG_ENABLE
+      Serial.println(F("- Left key pressed."));
+    #endif
     delay(100);
     if(digitalRead(SW_LEFT))
     {
@@ -698,6 +773,9 @@ void keySwitchNavigation(void)
   }
   if(digitalRead(SW_RIGHT))
   {
+    #ifdef LOG_ENABLE
+      Serial.println(F("- Right key pressed."));
+    #endif
     delay(100);
     if(digitalRead(SW_RIGHT))
     {
@@ -706,6 +784,9 @@ void keySwitchNavigation(void)
   }
   if(digitalRead(SW_ENTER))
   {
+    #ifdef LOG_ENABLE
+      Serial.println(F("- Enter key pressed."));
+    #endif
     delay(100);
     if(digitalRead(SW_ENTER))
     {
@@ -776,12 +857,12 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyChar(nameOfTally_ch1, INC);
+        updateTallyChar(nameOfTally_ch1, INCREMENT);
         displayLabelInput1();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyChar(nameOfTally_ch1, DEC);
+        updateTallyChar(nameOfTally_ch1, DECREMENT);
         displayLabelInput1();
       }
       else if(pressedKey == SW_ENTER)
@@ -804,12 +885,12 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyChar(nameOfTally_ch2, INC);
+        updateTallyChar(nameOfTally_ch2, INCREMENT);
         displayLabelInput2();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyChar(nameOfTally_ch2, DEC);
+        updateTallyChar(nameOfTally_ch2, DECREMENT);
         displayLabelInput2();
       }
       else if(pressedKey == SW_ENTER)
@@ -832,12 +913,12 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyChar(nameOfTally_ch3, INC);
+        updateTallyChar(nameOfTally_ch3, INCREMENT);
         displayLabelInput3();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyChar(nameOfTally_ch3, DEC);
+        updateTallyChar(nameOfTally_ch3, DECREMENT);
         displayLabelInput3();
       }
       else if(pressedKey == SW_ENTER)
@@ -855,12 +936,12 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyNum(nameOfTally_ch4, INC);
+        updateTallyNum(nameOfTally_ch4, INCREMENT);
         displayLabelInput4();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyNum(nameOfTally_ch4, DEC);
+        updateTallyNum(nameOfTally_ch4, DECREMENT);
         displayLabelInput4();
       }
       else if(pressedKey == SW_ENTER)
@@ -904,12 +985,12 @@ void state_update(uint8_t pressedKey)
       }
       else if(pressedKey == SW_UP)
       {
-        updateTallyNum(offsetInMM_ch1, INC);
+        updateTallyNum(offsetInMM_ch1, INCREMENT);
         displayOffsetInput1();
       }
       else if(pressedKey == SW_DOWN)
       {
-        updateTallyNum(offsetInMM_ch1, DEC);
+        updateTallyNum(offsetInMM_ch1, DECREMENT);
         displayOffsetInput1();
       }
       else if(pressedKey == SW_ENTER)
@@ -940,6 +1021,9 @@ void state_update(uint8_t pressedKey)
 }
 void iniSDcard(void)
 {
+  #ifdef LOG_ENABLE
+    Serial.println(F("- SD card initialization process started ..."));
+  #endif
   do
   {
     // Display intro Screen
@@ -951,6 +1035,9 @@ void iniSDcard(void)
     }
     else
     {
+      #ifdef LOG_ENABLE
+        Serial.println(F("- SD card initialized succesfully ..."));
+      #endif
       break;
     }
     while(1)
@@ -974,12 +1061,12 @@ void updateTallyChar(char *arr, int8_t update_inst)
 
   if((temp < 0x41) || (temp > 0x5A)){  temp = 0x41;} // set default to A, if out of range
   
-  if(update_inst == INC)
+  if(update_inst == INCREMENT)
   {
     temp++;
     if(temp > 0x5A){ temp = 0x41;}
   }
-  else if(update_inst == DEC)
+  else if(update_inst == DECREMENT)
   {
     temp--;
     if(temp < 0x41){ temp = 0x5A;}
@@ -992,16 +1079,15 @@ void updateTallyNum(char *arr, int8_t update_inst)
 
   if((temp < 0x30) || (temp > 0x39)){  temp = 0x30;}   // set default to 0, if out of range
 
-  if(update_inst == INC)
+  if(update_inst == INCREMENT)
   {
     temp++;
     if(temp > 0x39){ temp = 0x30;}
   }
-  else if(update_inst == DEC)
+  else if(update_inst == DECREMENT)
   {
     temp--;
     if(temp < 0x30){ temp = 0x39;}
   }
   arr[0] = temp;
 }
-
